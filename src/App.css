@@ -36,3 +36,18 @@
     transform: rotate(360deg);
   }
 }
+
+.flexbox {
+  display: flex;
+}
+
+
+.flexbox2 {
+  display: grid;
+  width: 300px;
+  padding: 100px;
+}
+
+.flexbox3 {
+  width: 100%;
+}
