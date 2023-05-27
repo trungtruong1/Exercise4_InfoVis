@@ -1,0 +1,11 @@
+This web visualization is built based on ReactJS. To run this you need NodeJs
+
+There are a few dependencies you need to run this web visualization:
+npm install d3
+npm install @mui/material @emotion/react @emotion/styled
+npm i react-select
+npm install dayjs
+npm install @mui/x-date-pickers
+
+To run the web app:
+npm start
