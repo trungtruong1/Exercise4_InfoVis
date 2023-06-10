@@ -1,167 +1,113 @@
-import React from "react";
+import * as React from 'react';
 import './App.css';
-import BarChart from './BarChart'
-import Select from "./Select.js";
-import LineChart from './LineChart'
+import Gapminder from "./Gapminder";
 import * as d3 from 'd3'
-import csvData from './data/owid-covid-data.csv'
+import csvFer from './data/fertility-rate.csv'
+import csvExp from './data/life-expectancy.csv'
+import csvPop from './data/population.csv'
+import Box from '@mui/material/Box';
+import Slider from '@mui/material/Slider';
 import { useEffect, useState } from 'react';
-import { components } from "react-select";
-import makeAnimated from "react-select/animated";
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import FormGroup from '@mui/material/FormGroup';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
-
-const Option = (props) => {
-  return (
-    <div>
-      <components.Option {...props}>
-        <input
-          type="checkbox"
-          checked={props.isSelected}
-          onChange={() => null}
-        />{" "}
-        <label>{props.label}</label>
-      </components.Option>
-    </div>
-  );
-};
-
-const MultiValue = props => (
-  <components.MultiValue {...props}>
-    <span>{props.data.label}</span>
-  </components.MultiValue>
-);
-
-const animatedComponents = makeAnimated();
 
 function App() {
   const [data, setData] = useState([]);
-  const [vaccinatedData, setVaccinatedData] = useState([]);
-  const [countryData, setCountryData] = useState([]);
-  const [optionSelected, setOptionSelected] = useState([]);
-  const [startDate, setStartDate] = useState(new Date('2020-02-24'));
-  const [endDate, setEndDate] = useState(new Date('2023-02-27'));
-  const [toggle, setToggle] = useState(false);
+  const [selectedYear, setSelectedYear] = useState([1960]);
   
+  function preventHorizontalKeyboardNavigation(event) {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+    }
+  }
+
+  const marks = [
+    {
+      value: 1960,
+      label: "1960"
+    },
+    {
+      value: 2021,
+      label: "2021"
+    }
+  ];
+
+  let years = [];
+
+  for (let i = 1960; i < 2023; i++) {
+    years.push(i.toString());
+  }
+
   useEffect(() => {
-    d3.csv(csvData)
-    .then(data => {
-          data.map(function(el){
-              el["percent_fully"] = el["people_fully_vaccinated"] / el["population"];
-              el["total_percent"] = el["people_vaccinated"] / el["population"];
-              el["percent_partly"] = el["total_percent"] - el["percent_fully"];
+    Promise.all([
+      d3.csv(csvFer),
+      d3.csv(csvExp),
+      d3.csv(csvPop),
+      ]).then(function(files) {
+          let ferData = files[0];
+          let expData = files[1];
+          let popData = files[2];
+          let processedData = [];
+          years.forEach(year => {
+            for(let i = 0; i < ferData.length; i++){             
+              let country_data_for_a_year = {
+                'year': year,
+                'country': ferData[i]["Country Name"],
+                'fertility_rate': ferData[i][year],
+                'population': popData[i][year],
+                'expectancy': expData[i][year],
+              };
+              processedData.push(country_data_for_a_year);
+            }
           });
-          const share = data.filter(el => el.people_vaccinated & el.people_fully_vaccinated)
-  
-          const getRecent = arr => { 
-              const res = [], map = {};
-           
-              arr.forEach(el => {
-                 if (!(el['location'] in map)) {
-                    map[el['location']] = res.push(el) - 1;
-                    return;
-                 };
-                 if(res[map[el['location']]]['date'] < el['date']){
-                    res[map[el['location']]] = el;
-                 };
-              });
-              return res;
-          };
-  
-          const vaccinated = getRecent(share);
-          vaccinated.sort(function(a, b){
-              return b["total_percent"] - a["total_percent"]
+
+          let nonNullProcessedData = processedData.filter(function(item) {
+            return item.fertility_rate != "" && item.population != "" && item.expectancy != "";
+          });
+          
+          nonNullProcessedData.sort(function(a, b){
+            return b["population"] - a["population"]
           })
 
-          const countryNames = [...new Set(data.map(data => data.location))];
-          setData(data)
-          setVaccinatedData(vaccinated)
-          setCountryData(countryNames)
-  
-    })
-     .catch(error => {
+          setData(nonNullProcessedData);
+      }).catch(function(error) {
           console.error(error);
           console.error('Error loading the data');
-  });
-  }, []);
-
-  const countryMap = countryData.map((value) => ({
-    value: value,
-    label: value,
-  }));
+      })
+  }, [])
 
   return (
     <div className="App">
       <div id="container" className="flexbox">
         <div id="graph" className="flexbox3">
           <center>
-            <h3>InfoVis Exercise 3</h3>
+            <h3>InfoVis Exercise 4</h3>
             <div id="legend"></div>
             <div id="chart" >
-              <BarChart 
-                toggle={toggle}
-                data={vaccinatedData.filter(el => el.total_percent <= 1)}
-                optionSelected={optionSelected}/>
-              <LineChart 
-                toggle={toggle}
+              <Gapminder
                 data={data}
-                startDate={startDate}
-                endDate={endDate}
-                optionSelected={optionSelected}/>
+                selectedYear={selectedYear}
+              />
             </div>
           </center>
         </div>
-        <div className="flexbox2" >
-          <center>
-            <h3>Pick countries to display!</h3>
-            <Select
-              options={countryMap}
-              isMulti
-              closeMenuOnSelect={false}
-              hideSelectedOptions={false}
-              components={({ Option, MultiValue, animatedComponents })}
-              onChange={(selected) => {setOptionSelected(selected)}}
-              allowSelectAll={true}
-              value={optionSelected}
+        <div className="flexbox2">
+          <Box sx={{ height: 500 }}>
+            <Slider
+              sx={{
+                '& input[type="range"]': {
+                  WebkitAppearance: 'slider-vertical',
+                },
+              }}
+              orientation="vertical"
+              onChange={(selected) => {setSelectedYear(selected.target.value)}}
+              defaultValue={1960}
+              valueLabelDisplay="on"
+              onKeyDown={preventHorizontalKeyboardNavigation}
+              marks={marks}
+              step={1}
+              min={1960}
+              max={2021}
             />
-          </center>   
-          <center>
-            <h3>Pick start date!</h3>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker onChange={(date) => setStartDate(new Date(date))}/>
-            </LocalizationProvider>
-          </center> 
-          <center>
-            <h3>Pick end date!</h3>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker onChange={(date) => {
-                if(new Date(date) > startDate){
-                  setEndDate(new Date(date))
-                }
-                else{
-                  console.log("End date has to be after start date!")
-                }
-                }}/>
-            </LocalizationProvider>
-          </center> 
-          <center>
-            <h3>Turn on the switch to see the Bar Chart, off to see the Line Chart!</h3>
-            <FormGroup>
-              <center>
-              <FormControlLabel control={<Switch onChange={(event) => {
-                if(event.target.checked === true){
-                  setToggle(true)
-                } else {
-                  setToggle(false)
-                }
-              }} />} />
-              </center>
-            </FormGroup>
-          </center>
+          </Box>
         </div>
       </div>
     </div>
